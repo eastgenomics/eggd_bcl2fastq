@@ -31,7 +31,6 @@ main() {
     done
 
   elif [ -n "${upload_sentinel_record}" ]; then
-    mkdir ./input
     # get the tar.gzs linked to the record and uncompress them in the order they were created
     file_ids=$(dx get_details "${upload_sentinel_record}" | jq -r '.tar_file_ids | .[]')
 
@@ -49,10 +48,10 @@ main() {
       extn="${name##*.}"
 
       if [[ "${extn}" == "gz" ]]; then
-        dx cat ${file_id} | tar xzf - --no-same-owner -C ./input/
+        dx cat ${file_id} | tar xzf - --no-same-owner -C ./
 
       elif [[ "${extn}" == "tar" ]]; then
-        dx cat ${file_id} | tar xf - --no-same-owner -C ./input/
+        dx cat ${file_id} | tar xf - --no-same-owner -C ./
 
       else
           dx-jobutil-report-error "The upload_sentinel_record doesn't contain tar or tar.gzs"
@@ -108,12 +107,6 @@ main() {
 
   cd "${location_of_runarchive}"
 
-  # formatting check
-  # /usr/bin/dos2unix SampleSheet.csv
-  cp SampleSheet.csv SampleSheet.tmp
-  # remove any non alphanumeric characters in place
-  sed -i 's/[: ()]//g' SampleSheet.csv
-
   echo "Step 3: build and run bcl2fastq" # from asset
   # Load the bcl2fastq from root where it was placed from the asset bundle
   dpkg -i /bcl2fastq*.deb
@@ -124,53 +117,38 @@ main() {
   run_id=$(cat RunInfo.xml | grep "Run Id" | cut -d'"' -f2)
   echo $run_id
 
-  # dos2unix SampleSheet.csv
-  cp SampleSheet.csv ${run_id}_SampleSheet.csv
-  echo "exit"
-  echo $meow
-
   echo "Step 4: upload fastqs and run statistics"
   # look for fastq files and upload them
-  out_reads=/home/dnanexus/out/fastqs && mkdir -p ${out_reads}
-  mkdir ${out_reads}/${run_id}_fastqs
-  mv ./Data/Intensities/BaseCalls/*.fastq.gz ${out_reads}/${run_id}_fastqs
 
   # upload reports (stats)
-  out_stats=/home/dnanexus/out/stats/${run_id}_stats && mkdir -p ${out_stats}
-  mkdir ${out_stats}/Data_Intensities_BaseCalls_Stats
-  mv RunInfo.xml ${out_stats}/
-  mv ${run_id}_SampleSheet.csv ${out_stats}/
-  mv ./Data/Intensities/BaseCalls/Stats/* ${out_stats}/Data_Intensities_BaseCalls_Stats/
+  outdir=/home/dnanexus/out/output && mkdir -p ${outdir}
 
   # concatenate all the lane.html and laneBarcode.html files
   all_barcodes=''
   for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html"); do all_barcodes="${all_barcodes} ${file}"; done
   cat ${all_barcodes} > all_barcodes.html
   cat all_barcodes.html | grep -v "hide" > all_barcodes_edited.html
-  mv all_barcodes_edited.html ${out_stats}/${run_id}_all_barcodes.html
+  mv all_barcodes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_barcodes.html
 
   all_lanes=''
   for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html"); do all_lanes="${all_lanes} ${file}"; done
   cat ${all_lanes} > all_lanes.html
   cat all_lanes.html | grep -v "show" > all_lanes_edited.html
-  mv all_lanes_edited.html ${out_stats}/${run_id}_all_lanes.html
+  mv all_lanes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_lanes.html
 
-  mkdir ${out_stats}/Config
-  mv ./Config/* ${out_stats}/Config
+  # remove bcl files and their folders
+  mkdir bcls
+  mv Data/Intensities/BaseCalls/L* bcls/
 
-  mkdir ${out_stats}/Recipe
-  mv ./Recipe/* ${out_stats}/Recipe
+  mv Data ${outdir}/
+  mv Config ${outdir}/
+  mv Recipe ${outdir}/
+  mv Logs ${outdir}/
+  mv InterOp ${outdir}/
+  mv R*.* ${outdir}/ # RTA
+  mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
-  mkdir ${out_stats}/Logs
-  mv ./Logs/* ${out_stats}/Logs
 
-  mkdir ${out_stats}/InterOp
-  mv ./InterOp/* ${out_stats}/InterOp
-
-  mv ./R*.* ${out_stats}/
-
-  ls
-  ls /home/dnanexus/out/
   # Upload outputs
   dx-upload-all-outputs
 

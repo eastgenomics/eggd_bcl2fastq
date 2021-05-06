@@ -40,15 +40,8 @@
   ],
   "outputSpec": [
     {
-      "name": "fastqs",
-      "label": "Fastq files of samples",
-      "help": "An array of FASTQ files of both left and right mates (one pair per sample)",
-      "class": "array:file",
-      "patterns": ["*.fastq.gz"]
-    },
-    {
-      "name": "stats",
-      "label": "Statistics files",
+      "name": "output",
+      "label": "All files (except bcls) from the sequencer after demultiplexing",
       "help": "An array of files with run statistics",
       "class": "array:file"
     }
