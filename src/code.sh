@@ -85,22 +85,22 @@ main() {
     if [ "${location_of_runarchive}" != "." ]; then
       mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
     fi
-
-  # if not, check if its present along with the sentinel record
-    # get the samplesheet id from the sentinel record and download it
-  # elif [ -n "${upload_sentinel_record}" ]; then
-  #   sample_sheet_id=$(dx get_details "${upload_sentinel_record}" | jq -r .samplesheet_file_id)
-
-  #   if [ "${sample_sheet_id}" ==  "null"  ]; then
-  #     dx-jobutil-report-error "Samplesheet was not found." AppInternalError
-  #   else
-  #     dx download -f "${sample_sheet_id}" -o SampleSheet.csv
-  #   fi
-
+  
   # check if its present in the run folder
   elif [ -f ${location_of_runarchive}/*heet.csv ]; then
     mv ${location_of_runarchive}/*heet.csv "${location_of_runarchive}"/SampleSheet.csv
     echo "The SampleSheet.csv was found in the run directory."
+
+  # if not, check if its present along with the sentinel record
+    # get the samplesheet id from the sentinel record and download it
+  elif [ -n "${upload_sentinel_record}" ]; then
+    sample_sheet_id=$(dx get_details "${upload_sentinel_record}" | jq -r .samplesheet_file_id)
+
+    if [ "${sample_sheet_id}" ==  "null"  ]; then
+      dx-jobutil-report-error "Samplesheet was not found." AppInternalError
+    else
+      dx download -f "${sample_sheet_id}" -o SampleSheet.csv
+    fi
 
   else
       dx-jobutil-report-error "No SampleSheet could be found."
@@ -119,65 +119,21 @@ main() {
   dpkg -i /bcl2fastq*.deb
 
   bcl2fastq $advanced_opts
-  # /usr/bin/bcl2fastq $advanced_opts
-      
-  # # Annotating R1 reads
-    awk -v value="Sample_ID" '{if($0~value) print $0",R1.fastq.gz"; else print $0}' SampleSheet.tmp > SampleSheet.csv
-    find . -name "*_R1_*.fastq.gz" -mindepth 5 | while read file
-      do 
-        prefix=`basename $file |  cut -d  '_' -f1`
-        if [ "$prefix" == "Undetermined" ]; then
-            echo "Don't test undetermined"
-        else
-        #prefix=`echo $file | cut -d '/' -f7 |  cut -d  '_' -f1`
-          size=$(stat -c%s "$file")
-          cp SampleSheet.csv SampleSheet.tmp
-          if [ "$size" -lt "$size_limit" ]; then
-            awk -v value="$prefix" '{if($0~value) print $0",FAIL"; else print $0}' SampleSheet.tmp >  SampleSheet.csv
-          else
-            awk -v value="$prefix" '{if($0~value) print $0",PASS"; else print $0}' SampleSheet.tmp > SampleSheet.csv
-          fi
-        fi
-      done
-
-  # # Annotating R2 reads
-    awk -v value="Sample_ID" '{if($0~value) print $0",R2.fastq.gz"; else print $0}' SampleSheet.tmp > SampleSheet.csv
-    find . -name "*_R2_*.fastq.gz" -mindepth 5 | while read file
-      do
-        prefix=`basename $file | cut -d  '_' -f1`
-        if [ "$prefix" == "Undetermined" ]; then
-          echo "Don't test undetermined"
-        else
-          #prefix=`echo $file | cut -d '/' -f7 |  cut -d  '_' -f1`
-          size=$(stat -c%s "$file")
-          cp SampleSheet.csv SampleSheet.tmp
-          if [ "$size" -lt "$size_limit" ]; then
-            awk -v value="$prefix" '{if($0~value) print $0",FAIL"; else print $0}' SampleSheet.tmp >  SampleSheet.csv
-          else
-            awk -v value="$prefix" '{if($0~value) print $0",PASS"; else print $0}' SampleSheet.tmp > SampleSheet.csv
-          fi
-        fi
-      done
 
   # get run ID to prefix the summary and stats files
   run_id=$(cat RunInfo.xml | grep "Run Id" | cut -d'"' -f2)
   echo $run_id
 
   # dos2unix SampleSheet.csv
-  cp SampleSheet.csv ${run_id}_SampleSheet.csv  
+  cp SampleSheet.csv ${run_id}_SampleSheet.csv
+  echo "exit"
+  echo $meow
 
   echo "Step 4: upload fastqs and run statistics"
-  # look for R1 fastq files and upload them
+  # look for fastq files and upload them
   out_reads=/home/dnanexus/out/fastqs && mkdir -p ${out_reads}
   mkdir ${out_reads}/${run_id}_fastqs
   mv ./Data/Intensities/BaseCalls/*.fastq.gz ${out_reads}/${run_id}_fastqs
-
-  # # Make a dummy entry for reads2 (for single end sequencing)
-  # echo "{\"reads2\":[]}" > ~/job_output.json
-  # # look for R2 fastq files and upload them
-  # out_reads2=out/reads2 && mkdir -p ${out_reads2}
-  # mkdir ${out_reads2}/fastqs
-  # mv ./Data/Intensities/BaseCalls/*_R2_*.fastq.gz ${out_reads2}/fastqs
 
   # upload reports (stats)
   out_stats=/home/dnanexus/out/stats/${run_id}_stats && mkdir -p ${out_stats}
