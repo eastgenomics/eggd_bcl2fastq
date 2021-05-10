@@ -7,7 +7,7 @@ This is the source code for an app that runs on the DNAnexus Platform.
 
 <!-- Insert a description of your app here -->
 ## What does this app do?
-Takes in the tar.gz packets of data uploaded from the NovaSeq machine as sequencing data was generated. Untars the files to reconstruct the NovaSeq output directory structure and demultiplexes the base call files to paired fastq.tar.gz for samples in the SampleSheet.csv based on the barcode sequences.
+Takes in the tar.gz packets of data uploaded from the NovaSeq machine as sequencing data was generated. OR the sentinel record file that was generated during dx-streaming-upload. Untars the files to reconstruct the NovaSeq output directory structure and demultiplexes the base call files to paired fastq.tar.gz for samples in the SampleSheet.csv based on the barcode sequences.
 
 ## What are typical use cases for this app?
 This app may be executed as a standalone app or as part of an analysis pipeline.
@@ -18,18 +18,15 @@ This app requires
 * SampleSheet.csv
 * upload sentinel record
 * array of tar.gz containing the output packets from the sequencer
-* destination project name
 
 Optional input parameters:
-* Run information
-* lane splitting - defaults to FALSE
-* advanced options
+* advanced options for running bcl2fastq
 
 ## What does this app output?
-* samplesheet.csv with a PASS/FAIL column
-* a folder of fastq files
+* uploads all data from the sequencer (except for bcl files)
+* including the demultiplexed fastq files in the folder where they are generated (Data/Intensities/BaseCalls)
 
 ## Dependencies
-The app includes a tar.gz of the executable bcl2fast Docker image.
+The applet depends on the bcl2fastq .deb file which is stored as an asset on DNAnexus.
 
 ### This app was made by East GLH
