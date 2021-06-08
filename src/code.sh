@@ -80,10 +80,10 @@ main() {
   if [ "${sample_sheet}" != "" ]; then
     dx download -f "${sample_sheet}" -o SampleSheet.csv
 
-    # make sure the sample sheet is present in the correct location as the tool would expect
-    if [ "${location_of_runarchive}" != "." ]; then
-      mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
-    fi
+  # make sure the sample sheet is present in the correct location as the tool would expect
+  if [ "${location_of_runarchive}" != "." ]; then
+    mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
+  fi
   
   # check if its present in the run folder
   elif [ -f ${location_of_runarchive}/*heet.csv ]; then
@@ -91,7 +91,7 @@ main() {
     echo "The SampleSheet.csv was found in the run directory."
 
   # if not, check if its present along with the sentinel record
-    # get the samplesheet id from the sentinel record and download it
+  # get the samplesheet id from the sentinel record and download it
   elif [ -n "${upload_sentinel_record}" ]; then
     sample_sheet_id=$(dx get_details "${upload_sentinel_record}" | jq -r .samplesheet_file_id)
 
@@ -106,11 +106,11 @@ main() {
   fi
 
   cd "${location_of_runarchive}"
+  # dos2unix SampleSheet.csv
 
   echo "Step 3: build and run bcl2fastq" # from asset
   # Load the bcl2fastq from root where it was placed from the asset bundle
   dpkg -i /bcl2fastq*.deb
-
   bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
@@ -119,8 +119,6 @@ main() {
 
   echo "Step 4: upload fastqs and run statistics"
   # look for fastq files and upload them
-
-  # upload reports (stats)
   outdir=/home/dnanexus/out/output && mkdir -p ${outdir}
 
   # concatenate all the lane.html and laneBarcode.html files
@@ -141,13 +139,7 @@ main() {
   mv Data/Intensities/BaseCalls/L* bcls/
 
   mv Data ${outdir}/
-  mv Config ${outdir}/
-  mv Recipe ${outdir}/
-  mv Logs ${outdir}/
-  mv InterOp ${outdir}/
-  mv R*.* ${outdir}/ # RTA
   mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
-
 
   # Upload outputs
   dx-upload-all-outputs
