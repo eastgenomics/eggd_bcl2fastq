@@ -26,7 +26,7 @@ main() {
 
       else
         dx-jobutil-report-error "ERROR: The input was not a .rar, .zip, .tar.gz or .tgz"
-
+        exit 1
       fi
     done
 
@@ -62,6 +62,7 @@ main() {
 
       else
           dx-jobutil-report-error "The upload_sentinel_record doesn't contain tar or tar.gzs"
+          exit 1
       fi
 
     done
@@ -78,6 +79,7 @@ main() {
 
   if [ "${location_of_data}" == "" ]; then
     dx-jobutil-report-error "The Data folder could not be found."
+    exit 1
   fi
 
   location_of_runarchive=${location_of_data%/Data}
@@ -104,12 +106,14 @@ main() {
 
     if [ "${sample_sheet_id}" ==  "null"  ]; then
       dx-jobutil-report-error "Samplesheet was not found." AppInternalError
+      exit 1
     else
       dx download -f "${sample_sheet_id}" -o SampleSheet.csv
     fi
 
   else
       dx-jobutil-report-error "No SampleSheet could be found."
+      exit 1
   fi
 
   cd "${location_of_runarchive}"
@@ -168,17 +172,9 @@ main() {
   mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
   mv R*.* ${outdir}/ # RTA
   mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
-  
-  
-  # mv Data /
-  # mv Config ${outdir}/
-  # mv Recipe ${outdir}/
-  # mv Logs ${outdir}/
-  # mv InterOp ${outdir}/
-
 
   # Upload outputs
-  dx-upload-all-outputs
+  dx-upload-all-outputs --parallel
 
   echo "DONE!"
 }
