@@ -36,10 +36,17 @@ main() {
 
     # This has to be done in order, so no parallelization
 
-    #Tarball are not in the correct order
+    # Tarball are not in the correct order
     declare -A files_names_ids
 
-    for id in $(echo ${file_ids}); do name=$(dx describe ${id} --name); files_names_ids[${name}]=${id}; echo ${name} >> files_names.tmp; done
+    # get human names of tars from file ids
+    for id in $(echo ${file_ids})
+    do 
+      name=$(dx describe ${id} --name)
+      files_names_ids[${name}]=${id}
+      echo ${name} >> files_names.tmp
+    done
+
     sort files_names.tmp > files_names.txt
 
     for name in $(cat files_names.txt); do
@@ -111,6 +118,7 @@ main() {
   # Load the bcl2fastq from root where it was placed from the asset bundle
   dpkg -i /bcl2fastq*.deb
 
+  # run bcl2fastq with advanced options if given (default: -l NONE)
   bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
@@ -123,15 +131,25 @@ main() {
   # upload reports (stats)
   outdir=/home/dnanexus/out/output && mkdir -p ${outdir}
 
-  # concatenate all the lane.html and laneBarcode.html files
+  # concatenate all the laneBarcode.html files into single ${run_id}_all_barcodes.html file
   all_barcodes=''
-  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html"); do all_barcodes="${all_barcodes} ${file}"; done
+  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html")
+  do 
+    all_barcodes="${all_barcodes} ${file}"
+  done
+
   cat ${all_barcodes} > all_barcodes.html
   cat all_barcodes.html | grep -v "hide" > all_barcodes_edited.html
   mv all_barcodes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_barcodes.html
 
+
+  # concatenate all the lane.html files into single ${run_id}_all_lanes.html file
   all_lanes=''
-  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html"); do all_lanes="${all_lanes} ${file}"; done
+  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html")
+  do 
+    all_lanes="${all_lanes} ${file}"
+  done
+
   cat ${all_lanes} > all_lanes.html
   cat all_lanes.html | grep -v "show" > all_lanes_edited.html
   mv all_lanes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_lanes.html
@@ -140,13 +158,23 @@ main() {
   mkdir bcls
   mv Data/Intensities/BaseCalls/L* bcls/
 
-  mv Data ${outdir}/
-  mv Config ${outdir}/
-  mv Recipe ${outdir}/
-  mv Logs ${outdir}/
-  mv InterOp ${outdir}/
+  # move dirs to output to be uploaded
+  mv -t ${outdir}/ Data/ Config/ Recipe/
+
+  # tar the Logs/ and InterOp/ directories to speed up upload process
+  tar -czf InterOp.tar.gz InterOp/
+  tar -czf Logs.tar.gz Logs/
+
+  mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
   mv R*.* ${outdir}/ # RTA
   mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
+  
+  
+  # mv Data /
+  # mv Config ${outdir}/
+  # mv Recipe ${outdir}/
+  # mv Logs ${outdir}/
+  # mv InterOp ${outdir}/
 
 
   # Upload outputs
