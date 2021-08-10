@@ -100,7 +100,7 @@ main() {
     echo "The SampleSheet.csv was found in the run directory."
 
   # if not, check if its present along with the sentinel record
-    # get the samplesheet id from the sentinel record and download it
+  # get the samplesheet id from the sentinel record and download it
   elif [ -n "${upload_sentinel_record}" ]; then
     sample_sheet_id=$(dx get_details "${upload_sentinel_record}" | jq -r .samplesheet_file_id)
 
@@ -169,8 +169,9 @@ main() {
   tar -czf InterOp.tar.gz InterOp/
   tar -czf Logs.tar.gz Logs/
 
+  # add tars and other required files to upload separately
   mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
-  mv R*.* ${outdir}/ # RTA
+  mv RTAComplete.* ${outdir}/ # RTAComplete.{txt/xml}
   mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
   # Upload outputs
