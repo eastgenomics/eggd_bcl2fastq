@@ -123,7 +123,7 @@ main() {
   dpkg -i /bcl2fastq*.deb
 
   # run bcl2fastq with advanced options if given (default: -l NONE)
-  bcl2fastq $advanced_opts
+  /usr/bin/time -v bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
   run_id=$(cat RunInfo.xml | grep "Run Id" | cut -d'"' -f2)
@@ -175,7 +175,11 @@ main() {
   mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
   # Upload outputs
-  dx-upload-all-outputs --parallel
+  /usr/bin/time -v dx-upload-all-outputs --parallel
+
+  # check usage to monitor usage of instance storage
+  echo "Total file system usage"
+  df -h
 
   echo "DONE!"
 }
