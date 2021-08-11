@@ -94,10 +94,12 @@ main() {
       mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
     fi
   
-  # check if its present in the run folder
-  elif [ -f ${location_of_runarchive}/*heet.csv ]; then
-    mv ${location_of_runarchive}/*heet.csv "${location_of_runarchive}"/SampleSheet.csv
-    echo "The SampleSheet.csv was found in the run directory."
+  # Sample sheet not given, try finding it in the run folder, use regex to account for anything named differently
+  # e.g. run-id_SampleSheet.csv, sample_sheet.csv, Sample Sheet.csv, sampleSheet.csv etc.
+  elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
+    samplesheet=$(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$')
+    echo "found sample sheet: $samplesheet in run directory"
+    mv ${samplesheet} "${location_of_runarchive}"/SampleSheet.csv
 
   # if not, check if its present along with the sentinel record
   # get the samplesheet id from the sentinel record and download it
