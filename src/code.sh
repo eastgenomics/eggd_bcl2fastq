@@ -125,7 +125,7 @@ main() {
   dpkg -i /bcl2fastq*.deb
 
   # run bcl2fastq with advanced options if given (default: -l NONE)
-  /usr/bin/time -v bcl2fastq $advanced_opts
+  bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
   run_id=$(cat RunInfo.xml | grep "Run Id" | cut -d'"' -f2)
@@ -173,8 +173,8 @@ main() {
 
   # add tars and other required files to upload separately
   mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
-  mv RTAComplete.* ${outdir}/ # RTAComplete.{txt/xml}
-  mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
+  mv R*.* ${outdir}/ # RTAComplete.{txt/xml}. RTA3.cfg, RunInfo.xml, RunParameters.xml
+  mv S*.* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
   # Upload outputs
   /usr/bin/time -v dx-upload-all-outputs --parallel
