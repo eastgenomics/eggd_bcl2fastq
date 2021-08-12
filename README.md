@@ -25,6 +25,8 @@ Optional input parameters:
 ## What does this app output?
 * uploads all data from the sequencer (except for bcl files)
 * including the demultiplexed fastq files in the folder where they are generated (Data/Intensities/BaseCalls)
+* all files in `Logs/` are uploaded to a single tar (`Logs.tar.gz`)
+* all files in `InterOp/` are uploaded to a single tar (`InterOp.tar.gz`)
 
 ## Dependencies
 The applet depends on the bcl2fastq .deb file which is stored as an asset on DNAnexus.
