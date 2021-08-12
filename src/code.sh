@@ -124,7 +124,7 @@ main() {
   # Load the bcl2fastq from root where it was placed from the asset bundle
   dpkg -i /bcl2fastq*.deb
 
-  # run bcl2fastq with advanced options if given (default: -l NONE)
+  # run bcl2fastq with advanced options if given (default: -l INFO)
   bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
