@@ -26,7 +26,7 @@ main() {
 
       else
         dx-jobutil-report-error "ERROR: The input was not a .rar, .zip, .tar.gz or .tgz"
-
+        exit 1
       fi
     done
 
@@ -36,10 +36,17 @@ main() {
 
     # This has to be done in order, so no parallelization
 
-    #Tarball are not in the correct order
+    # Tarball are not in the correct order
     declare -A files_names_ids
 
-    for id in $(echo ${file_ids}); do name=$(dx describe ${id} --name); files_names_ids[${name}]=${id}; echo ${name} >> files_names.tmp; done
+    # get human names of tars from file ids
+    for id in $(echo ${file_ids})
+    do 
+      name=$(dx describe ${id} --name)
+      files_names_ids[${name}]=${id}
+      echo ${name} >> files_names.tmp
+    done
+
     sort files_names.tmp > files_names.txt
 
     for name in $(cat files_names.txt); do
@@ -55,6 +62,7 @@ main() {
 
       else
           dx-jobutil-report-error "The upload_sentinel_record doesn't contain tar or tar.gzs"
+          exit 1
       fi
 
     done
@@ -71,6 +79,7 @@ main() {
 
   if [ "${location_of_data}" == "" ]; then
     dx-jobutil-report-error "The Data folder could not be found."
+    exit 1
   fi
 
   location_of_runarchive=${location_of_data%/Data}
@@ -85,24 +94,28 @@ main() {
       mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
     fi
   
-  # check if its present in the run folder
-  elif [ -f ${location_of_runarchive}/*heet.csv ]; then
-    mv ${location_of_runarchive}/*heet.csv "${location_of_runarchive}"/SampleSheet.csv
-    echo "The SampleSheet.csv was found in the run directory."
+  # Sample sheet not given, try finding it in the run folder, use regex to account for anything named differently
+  # e.g. run-id_SampleSheet.csv, sample_sheet.csv, Sample Sheet.csv, sampleSheet.csv etc.
+  elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
+    samplesheet=$(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$')
+    echo "found sample sheet: $samplesheet in run directory"
+    mv ${samplesheet} "${location_of_runarchive}"/SampleSheet.csv
 
   # if not, check if its present along with the sentinel record
-    # get the samplesheet id from the sentinel record and download it
+  # get the samplesheet id from the sentinel record and download it
   elif [ -n "${upload_sentinel_record}" ]; then
     sample_sheet_id=$(dx get_details "${upload_sentinel_record}" | jq -r .samplesheet_file_id)
 
     if [ "${sample_sheet_id}" ==  "null"  ]; then
       dx-jobutil-report-error "Samplesheet was not found." AppInternalError
+      exit 1
     else
       dx download -f "${sample_sheet_id}" -o SampleSheet.csv
     fi
 
   else
       dx-jobutil-report-error "No SampleSheet could be found."
+      exit 1
   fi
 
   cd "${location_of_runarchive}"
@@ -111,6 +124,7 @@ main() {
   # Load the bcl2fastq from root where it was placed from the asset bundle
   dpkg -i /bcl2fastq*.deb
 
+  # run bcl2fastq with advanced options if given (default: -l INFO)
   bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
@@ -123,15 +137,25 @@ main() {
   # upload reports (stats)
   outdir=/home/dnanexus/out/output && mkdir -p ${outdir}
 
-  # concatenate all the lane.html and laneBarcode.html files
+  # concatenate all the laneBarcode.html files into single ${run_id}_all_barcodes.html file
   all_barcodes=''
-  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html"); do all_barcodes="${all_barcodes} ${file}"; done
+  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html")
+  do 
+    all_barcodes="${all_barcodes} ${file}"
+  done
+
   cat ${all_barcodes} > all_barcodes.html
   cat all_barcodes.html | grep -v "hide" > all_barcodes_edited.html
   mv all_barcodes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_barcodes.html
 
+
+  # concatenate all the lane.html files into single ${run_id}_all_lanes.html file
   all_lanes=''
-  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html"); do all_lanes="${all_lanes} ${file}"; done
+  for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html")
+  do 
+    all_lanes="${all_lanes} ${file}"
+  done
+
   cat ${all_lanes} > all_lanes.html
   cat all_lanes.html | grep -v "show" > all_lanes_edited.html
   mv all_lanes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_lanes.html
@@ -140,17 +164,24 @@ main() {
   mkdir bcls
   mv Data/Intensities/BaseCalls/L* bcls/
 
-  mv Data ${outdir}/
-  mv Config ${outdir}/
-  mv Recipe ${outdir}/
-  mv Logs ${outdir}/
-  mv InterOp ${outdir}/
-  mv R*.* ${outdir}/ # RTA
-  mv S* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
+  # move dirs to output to be uploaded
+  mv -t ${outdir}/ Data/ Config/ Recipe/
 
+  # tar the Logs/ and InterOp/ directories to speed up upload process
+  tar -czf InterOp.tar.gz InterOp/
+  tar -czf Logs.tar.gz Logs/
+
+  # add tars and other required files to upload separately
+  mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
+  mv R*.* ${outdir}/ # RTAComplete.{txt/xml}. RTA3.cfg, RunInfo.xml, RunParameters.xml
+  mv S*.* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
   # Upload outputs
-  dx-upload-all-outputs
+  /usr/bin/time -v dx-upload-all-outputs --parallel
+
+  # check usage to monitor usage of instance storage
+  echo "Total file system usage"
+  df -h
 
   echo "DONE!"
 }
