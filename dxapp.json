@@ -34,7 +34,7 @@
       "help": "Additional command-line options to be passed verbatim to the invocation of bcl2fastq.",
       "class": "string",
       "optional": true,
-      "default": "-l NONE",
+      "default": "-l INFO",
       "group": "Advanced"
     }
   ],
