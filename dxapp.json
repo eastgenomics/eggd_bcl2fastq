@@ -62,7 +62,8 @@
     ]
   },
   "access": {
-    "project": "UPLOAD"
+    "project": "UPLOAD",
+    "allProjects":"UPLOAD"
   },
   "details": {
     "upstreamAuthor": "Illumina",

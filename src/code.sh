@@ -34,46 +34,32 @@ main() {
     # get the tar.gzs linked to the record and uncompress them in the order they were created
     file_ids=$(dx get_details "${upload_sentinel_record}" | jq -r '.tar_file_ids | .[]')
 
-    # This has to be done in order, so no parallelization
+    # check first tar to see if they are compressed (should be)
+    first_tar=($file_ids)
+    name=$(dx describe --json $first_tar | jq -r '.name')
+    extn="${name##*.}"
 
-    # Tarball are not in the correct order
-    declare -A files_names_ids
+    threads=$(nproc --all )  # control how many downloads to open in parallel
 
-    # get human names of tars from file ids
-    for id in $(echo ${file_ids})
-    do 
-      name=$(dx describe ${id} --name)
-      files_names_ids[${name}]=${id}
-      echo ${name} >> files_names.tmp
-    done
+    SECONDS=0
+    if [[ "${extn}" == "gz" ]]; then
+      echo $file_ids | sed 's/ /\n/g' | xargs -P ${threads} -n1 -I{} sh -c "dx cat {} | tar xzf - --no-same-owner --absolute-names -C ./"
+    elif [[ "${extn}" == "tar" ]]; then
+      echo $file_ids | sed 's/ /\n/g' | xargs -P ${threads} -n1 -I{} sh -c "dx cat {} | tar xf - --no-same-owner --absolute-names -C ./"
+    else
+        dx-jobutil-report-error "The upload_sentinel_record doesn't contain tar or tar.gzs"
+        exit 1
+    fi
+    duration=$SECONDS
 
-    sort files_names.tmp > files_names.txt
-
-    for name in $(cat files_names.txt); do
-      # format check and uncompress
-      file_id=${files_names_ids[${name}]}
-      extn="${name##*.}"
-
-      if [[ "${extn}" == "gz" ]]; then
-        dx cat ${file_id} | tar xzf - --no-same-owner -C ./
-
-      elif [[ "${extn}" == "tar" ]]; then
-        dx cat ${file_id} | tar xf - --no-same-owner -C ./
-
-      else
-          dx-jobutil-report-error "The upload_sentinel_record doesn't contain tar or tar.gzs"
-          exit 1
-      fi
-
-    done
-    rm files_names.t*
+     echo "Donwloading and unpackaing took $(($duration / 60))m$(($duration % 60))s."
 
   else
     dx-jobutil-report-error "Please provide either a compressed RUN folder or an upload Sentinel Record as an input"
   fi
 
   echo "Step 2: locate Data folder and SampleSheet.csv"
-  # Locate the unpacked Data files 
+  # Locate the unpacked Data files
   # check for the presence/location of the run folder
   location_of_data=$(find . -type d -name "Data")
 
@@ -93,7 +79,7 @@ main() {
     if [ "${location_of_runarchive}" != "." ]; then
       mv SampleSheet.csv "${location_of_runarchive}"/SampleSheet.csv
     fi
-  
+
   # Sample sheet not given, try finding it in the run folder, use regex to account for anything named differently
   # e.g. run-id_SampleSheet.csv, sample_sheet.csv, Sample Sheet.csv, sampleSheet.csv etc.
   elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
@@ -125,7 +111,7 @@ main() {
   dpkg -i /bcl2fastq*.deb
 
   # run bcl2fastq with advanced options if given (default: -l INFO)
-  bcl2fastq $advanced_opts
+  /usr/bin/time -v bcl2fastq $advanced_opts
 
   # get run ID to prefix the summary and stats files
   run_id=$(cat RunInfo.xml | grep "Run Id" | cut -d'"' -f2)
@@ -138,9 +124,12 @@ main() {
   outdir=/home/dnanexus/out/output && mkdir -p ${outdir}
 
   # concatenate all the laneBarcode.html files into single ${run_id}_all_barcodes.html file
+  # this floods the logs so turning off set -x
+  echo "Creating combined barcode html files"
   all_barcodes=''
+  set +x
   for file in $(find Data/Intensities/BaseCalls/Reports/ -name "laneBarcode.html")
-  do 
+  do
     all_barcodes="${all_barcodes} ${file}"
   done
 
@@ -152,27 +141,35 @@ main() {
   # concatenate all the lane.html files into single ${run_id}_all_lanes.html file
   all_lanes=''
   for file in $(find Data/Intensities/BaseCalls/Reports/ -name "lane.html")
-  do 
+  do
     all_lanes="${all_lanes} ${file}"
   done
 
   cat ${all_lanes} > all_lanes.html
   cat all_lanes.html | grep -v "show" > all_lanes_edited.html
-  mv all_lanes_edited.html Data/Intensities/BaseCalls/Reports/${run_id}_all_lanes.html
+
+  set -x
 
   # remove bcl files and their folders
   mkdir bcls
   mv Data/Intensities/BaseCalls/L* bcls/
 
-  # move dirs to output to be uploaded
-  mv -t ${outdir}/ Data/ Config/ Recipe/
-
   # tar the Logs/ and InterOp/ directories to speed up upload process
   tar -czf InterOp.tar.gz InterOp/
   tar -czf Logs.tar.gz Logs/
+  tar -czf htmlLaneReports.tar.gz Data/Intensities/BaseCalls/Reports/html/
+
+  # dump out all reports since we have tarred them
+  mv -t /tmp Data/Intensities/BaseCalls/Reports/html/
+
+  # add in the summarised html
+  mv all_lanes_edited.html Data/${run_id}_all_lanes.html
+
+  # move dirs to output to be uploaded
+  mv -t ${outdir}/ Data/ Config/ Recipe/
 
   # add tars and other required files to upload separately
-  mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz
+  mv -t ${outdir}/ InterOp.tar.gz Logs.tar.gz htmlLaneReports.tar.gz
   mv R*.* ${outdir}/ # RTAComplete.{txt/xml}. RTA3.cfg, RunInfo.xml, RunParameters.xml
   mv S*.* ${outdir}/ # SampleSheet.csv and SequenceComplete.txt
 
