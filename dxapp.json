@@ -1,6 +1,7 @@
 {
-  "name": "bcl2fastq2.20_v1.1.0",
+  "name": "bcl2fastq2.20",
   "title": "BCL to FASTQ v2.20",
+  "version": "1.2.0",
   "summary": "Converts Illumina data from BCL to FASTQ using bcl2fastq v2.20 demultiplexing barcoded samples, for use with NextSeq, HiSeq, NovaSeq",
   "tags": ["Read Mapping"],
   "dxapi": "1.0.0",
