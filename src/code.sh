@@ -52,7 +52,7 @@ main() {
     fi
     duration=$SECONDS
 
-    echo "Donwloading and unpackaing took $(($duration / 60))m$(($duration % 60))s."
+    echo "Downloading and unpacking took $(($duration / 60))m$(($duration % 60))s."
 
   else
     dx-jobutil-report-error "Please provide either a compressed RUN folder or an upload Sentinel Record as an input"
