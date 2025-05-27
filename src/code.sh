@@ -155,6 +155,7 @@ main() {
   mv Data/Intensities/BaseCalls/L* bcls/
 
   # Process InterOp files to produce inputs to multiqc, send them to output
+  mkdir -p interop_pkg
   tar -xvjf ~/illumina-interop-1.5.0-h503566f_0.tar.bz2 -C interop_pkg
   export PATH="$PWD/interop_pkg/bin:$PATH"
   echo "Generating InterOp summary CSV files"
