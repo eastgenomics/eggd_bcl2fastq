@@ -154,6 +154,14 @@ main() {
   mkdir bcls
   mv Data/Intensities/BaseCalls/L* bcls/
 
+  # Process InterOp files to produce inputs to multiqc, send them to output
+  mkdir -p interop_pkg
+  tar -xvjf ~/illumina-interop-1.5.0-h503566f_0.tar.bz2 -C interop_pkg
+  export PATH="$PWD/interop_pkg/bin:$PATH"
+  echo "Generating InterOp summary CSV files"
+  interop_summary --csv=1 InterOp/ > ${outdir}/interop_summary.csv || echo "interop_summary failed"
+  interop_index-summary --csv=1 InterOp/ > ${outdir}/interop_index_summary.csv || echo "interop_index-summary failed"
+  
   # tar the Logs/ and InterOp/ directories to speed up upload process
   tar -czf InterOp.tar.gz InterOp/
   tar -czf Logs.tar.gz Logs/
