@@ -168,7 +168,7 @@ main() {
   echo "Generating InterOp summary CSV files"
   interop_summary --csv=1 ~/ > ${outdir}/interop_summary.csv || echo "interop_summary failed"
   interop_index-summary --csv=1 ~/ > ${outdir}/interop_index_summary.csv || echo "interop_index-summary failed"
-  
+
   # tar the Logs/ and InterOp/ directories to speed up upload process
   tar -czf InterOp.tar.gz InterOp/
   tar -czf Logs.tar.gz Logs/
