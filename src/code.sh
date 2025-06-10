@@ -3,10 +3,18 @@
 # The following line causes bash to exit at any point if there is any error
 # and to output each line as it is executed -- useful for debugging
 set -e -x -o pipefail
+# prefixes all lines of commands written to stdout with datetime
+PS4='\000[$(date)]\011'
+export TZ=Europe/London
+
+# set frequency of instance usage in logs to 10 seconds
+kill $(ps aux | grep pcp-dstat | head -n1 | awk '{print $2}')
+/usr/bin/dx-dstat 10
 
 main() {
 
   echo "Step 1: download input tars and unpack them"
+
   # either a run archive or a sentinel record must be provided as an input
   if [ -n "${run_archive}" ]; then
     for i in ${!run_archive_name[@]}; do
@@ -154,14 +162,15 @@ main() {
   mkdir bcls
   mv Data/Intensities/BaseCalls/L* bcls/
 
-  # Process InterOp files to produce inputs to multiqc, send them to output
+  # untar InterOp tarball be be able to run interop commands
+  echo "Generating InterOp summary CSV files"
   mkdir -p interop_pkg
   tar -xvjf ~/illumina-interop-1.5.0-h503566f_0.tar.bz2 -C interop_pkg
   export PATH="$PWD/interop_pkg/bin:$PATH"
-  echo "Generating InterOp summary CSV files"
-  interop_summary --csv=1 InterOp/ > ${outdir}/interop_summary.csv || echo "interop_summary failed"
-  interop_index-summary --csv=1 InterOp/ > ${outdir}/interop_index_summary.csv || echo "interop_index-summary failed"
-  
+  # Run InterOp commands
+  interop_summary --csv=1 ~/ > ${outdir}/interop_summary.csv || echo "interop_summary failed"
+  interop_index-summary --csv=1 ~/ > ${outdir}/interop_index_summary.csv || echo "interop_index-summary failed"
+
   # tar the Logs/ and InterOp/ directories to speed up upload process
   tar -czf InterOp.tar.gz InterOp/
   tar -czf Logs.tar.gz Logs/
